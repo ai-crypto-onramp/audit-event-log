@@ -1,5 +1,7 @@
 # Audit / Event Log
 
+![CI](https://github.com/ai-crypto-onramp/audit-event-log/actions/workflows/ci.yml/badge.svg)
+
 Append-only audit trail for compliance and incident forensics; consumes the event bus.
 
 ## Overview / Responsibilities
