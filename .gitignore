@@ -4,4 +4,7 @@ vendor/
 .env
 *.log
 coverage.out
+*.test
+coverage.out
+/audit-event-log
 *.testcoverage.out
