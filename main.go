@@ -10,7 +10,18 @@ func healthz(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
+// newMux builds the HTTP routing table for the service.
+func newMux() *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", healthz)
+	return mux
+}
+
+// run starts the HTTP server on the given address and blocks until it exits.
+func run(addr string) error {
+	return http.ListenAndServe(addr, newMux())
+}
+
 func main() {
-	http.HandleFunc("/healthz", healthz)
-	_ = http.ListenAndServe(":8080", nil)
+	_ = run(":8080")
 }
