@@ -18,19 +18,19 @@ write into.
 
 ### Tasks
 
-- [ ] Define `audit_events` table migration matching the README data model
+- [x] Define `audit_events` table migration matching the README data model
       (id, ts, source_service, actor_id, action, target_type, target_id,
       payload_hash, payload_ref, prev_hash, this_hash, anchored, legal_hold,
       redacted).
-- [ ] Add composite index on `(ts ASC, id ASC)` to materialize chain order.
-- [ ] Add secondary indexes for query paths: `(source_service, ts)`,
+- [x] Add composite index on `(ts ASC, id ASC)` to materialize chain order.
+- [x] Add secondary indexes for query paths: `(source_service, ts)`,
       `(actor_id, ts)`, `(action, ts)`, `(target_type, target_id, ts)`.
-- [ ] Provision S3 payload bucket with Object Lock (compliance mode) for the
+- [x] Provision S3 payload bucket with Object Lock (compliance mode) for the
       full retention period; expose `PAYLOAD_BUCKET` config.
 - [ ] Configure S3 lifecycle: Standard -> Glacier at
       `GLACIER_TRANSITION_DAYS` (90), Glacier -> Deep Archive at
       `DEEP_ARCHIVE_TRANSITION_DAYS` (365).
-- [ ] Add migration runner and idempotent schema bootstrap in `cmd/audit-event-log`.
+- [x] Add migration runner and idempotent schema bootstrap in `cmd/audit-event-log`.
 
 ### Acceptance criteria
 
@@ -50,16 +50,16 @@ structured audit envelope (`actor`, `action`, `target`, `ts`, `source_service`,
 
 ### Tasks
 
-- [ ] Implement Kafka consumer group `audit-event-log` on `KAFKA_TOPIC` with
+- [x] Implement Kafka consumer group `audit-event-log` on `KAFKA_TOPIC` with
       at-least-once delivery and commit-on-success offset handling.
-- [ ] Define Go structs and JSON (un)marshaling for the wire envelope in
+- [x] Define Go structs and JSON (un)marshaling for the wire envelope in
       `internal/event`.
-- [ ] Validate required fields (`id`, `ts`, `source_service`, `actor_id`,
+- [x] Validate required fields (`id`, `ts`, `source_service`, `actor_id`,
       `action`, `target_type`, `target_id`, `payload_hash`) and reject
       malformed events to a dead-letter path.
-- [ ] Compute / verify `payload_hash` (SHA-256) when a `payload` is present;
+- [x] Compute / verify `payload_hash` (SHA-256) when a `payload` is present;
       fetch out-of-band payload from S3 when only `payload_hash` is supplied.
-- [ ] Wire config: `KAFKA_BROKERS`, `KAFKA_TOPIC`, `KAFKA_CONSUMER_GROUP`.
+- [x] Wire config: `KAFKA_BROKERS`, `KAFKA_TOPIC`, `KAFKA_CONSUMER_GROUP`.
 
 ### Acceptance criteria
 
@@ -79,13 +79,13 @@ write path keyed on event `id`.
 
 ### Tasks
 
-- [ ] Insert into `audit_events` and write payload to S3 (`payload_ref`) in a
+- [x] Insert into `audit_events` and write payload to S3 (`payload_ref`) in a
       single coordinated flow; S3 write precedes the index commit.
-- [ ] Enforce idempotency: insert with `ON CONFLICT (id) DO NOTHING` and treat
+- [x] Enforce idempotency: insert with `ON CONFLICT (id) DO NOTHING` and treat
       re-deliveries as no-ops.
-- [ ] Block updates/deletes at the repository layer; add tests asserting no
+- [x] Block updates/deletes at the repository layer; add tests asserting no
       mutating methods exist.
-- [ ] Surface ingest metrics: events/sec, latency p99, duplicate count,
+- [x] Surface ingest metrics: events/sec, latency p99, duplicate count,
       rejection count.
 - [ ] Meet ingest latency target (< 1s p99 event -> persisted + indexed).
 
@@ -104,17 +104,17 @@ and periodically anchor the chain root to KMS (and optional external notary).
 
 ### Tasks
 
-- [ ] Compute `this_hash` = SHA-256 over canonical concatenation of (id, ts,
+- [x] Compute `this_hash` = SHA-256 over canonical concatenation of (id, ts,
       source_service, actor_id, action, target_type, target_id, payload_hash,
       prev_hash).
-- [ ] On ingest, set `prev_hash` = `this_hash` of the preceding event ordered
+- [x] On ingest, set `prev_hash` = `this_hash` of the preceding event ordered
       by `(ts ASC, id ASC)`; genesis event `prev_hash` = 0.
 - [ ] Handle concurrent inserts safely (chain head lookup under transactional
       lock / serializable isolation).
-- [ ] Implement anchor job: every `CHAIN_ANCHOR_INTERVAL_MINUTES` (default 60),
+- [x] Implement anchor job: every `CHAIN_ANCHOR_INTERVAL_MINUTES` (default 60),
       write the latest `this_hash` to a root anchor record signed by
       `KMS_KEY_ID`; store anchor in S3 and POST to `EXTERNAL_NOTARY_URL` if set.
-- [ ] Set `anchored = true` on covered events after a successful anchor write.
+- [x] Set `anchored = true` on covered events after a successful anchor write.
 
 ### Acceptance criteria
 
@@ -133,14 +133,14 @@ search events by service, actor, action, target, and time range.
 
 ### Tasks
 
-- [ ] Implement `GET /v1/events` with filters `from`, `to`, `service`, `actor`,
+- [x] Implement `GET /v1/events` with filters `from`, `to`, `service`, `actor`,
       `action`, `target_type`, `target_id`, `limit`, `cursor` (keyset
       pagination on `(ts, id)`).
-- [ ] Implement `GET /v1/events/:id` returning the full envelope plus a
+- [x] Implement `GET /v1/events/:id` returning the full envelope plus a
       presigned S3 `payload_ref` download URL.
-- [ ] Implement `GET /v1/events/:id/verify-chain` returning
+- [x] Implement `GET /v1/events/:id/verify-chain` returning
       `{ prev_hash, this_hash, status }` for a single event.
-- [ ] Add authn/authz middleware (audit-reader role for reads; audit-admin for
+- [x] Add authn/authz middleware (audit-reader role for reads; audit-admin for
       admin endpoints introduced later).
 - [ ] Hit query p99 < 500ms on indexed lookups under load.
 
@@ -160,14 +160,14 @@ and reports the first broken link and any gap.
 
 ### Tasks
 
-- [ ] Implement `./bin/audit-event-log verify-chain --from --to` CLI that
+- [x] Implement `./bin/audit-event-log verify-chain --from --to` CLI that
       streams events ordered by `(ts, id)` and recomputes `this_hash` and
       `prev_hash` linkage.
-- [ ] Implement `POST /v1/admin/verify-chain` (audit-admin only) triggering a
+- [x] Implement `POST /v1/admin/verify-chain` (audit-admin only) triggering a
       full sweep; return progress + final signed report.
-- [ ] Validate each KMS-signed anchor against the recomputed root at that
+- [x] Validate each KMS-signed anchor against the recomputed root at that
       point; report first mismatch with position and anchor id.
-- [ ] Produce a signed integrity report artifact suitable for regulator
+- [x] Produce a signed integrity report artifact suitable for regulator
       submission.
 - [ ] Target full-chain recompute <= 30 minutes for a full sweep.
 
@@ -188,15 +188,15 @@ configurable query window and retention period.
 
 ### Tasks
 
-- [ ] Implement `POST /v1/exports` accepting
+- [x] Implement `POST /v1/exports` accepting
       `{ query, format: json|csv, retention_days }`; create an async export job
       and return export id.
-- [ ] Implement `GET /v1/exports/:id` returning job status and, on completion,
+- [x] Implement `GET /v1/exports/:id` returning job status and, on completion,
       a signed S3 download URL.
-- [ ] Write export artifact to S3 with Object Lock for `retention_days`; same
+- [x] Write export artifact to S3 with Object Lock for `retention_days`; same
       envelope schema as stored events plus `prev_hash` / `this_hash`.
-- [ ] Include a manifest (row count, window, chain root, KMS anchor id).
-- [ ] Restrict endpoint to audit-admin role.
+- [x] Include a manifest (row count, window, chain root, KMS anchor id).
+- [x] Restrict endpoint to audit-admin role.
 
 ### Acceptance criteria
 
@@ -214,15 +214,15 @@ configurable redaction at ingest without breaking the hash chain.
 
 ### Tasks
 
-- [ ] Define redaction policy format (`REDACTION_POLICY_PATH`,
+- [x] Define redaction policy format (`REDACTION_POLICY_PATH`,
       `/etc/audit/redaction.yaml`) declaring field-level transforms (hash,
       mask, drop) per `source_service` / `action`.
-- [ ] Apply redaction to `payload` before writing to S3; preserve original
+- [x] Apply redaction to `payload` before writing to S3; preserve original
       `payload_hash` and set `redacted = true`.
-- [ ] Ensure `this_hash` is computed over `payload_hash` (not the payload body)
+- [x] Ensure `this_hash` is computed over `payload_hash` (not the payload body)
       so redaction does not invalidate the chain.
-- [ ] Add admin endpoint to reload redaction policy without restart.
-- [ ] Add tests covering hash, mask, and drop transforms and policy reload.
+- [x] Add admin endpoint to reload redaction policy without restart.
+- [x] Add tests covering hash, mask, and drop transforms and policy reload.
 
 ### Acceptance criteria
 
@@ -240,14 +240,14 @@ tier lifecycle to Glacier / Deep Archive.
 
 ### Tasks
 
-- [ ] Enforce `RETENTION_DAYS` (default 2555) as Object Lock retention on all
+- [x] Enforce `RETENTION_DAYS` (default 2555) as Object Lock retention on all
       S3 payload and export artifacts.
-- [ ] Confirm lifecycle transitions Standard -> Glacier (90d) ->
+- [x] Confirm lifecycle transitions Standard -> Glacier (90d) ->
       Deep Archive (365d) are active and tested against a mocked S3.
-- [ ] Implement legal hold: `POST /v1/admin/legal-hold/:id` to place/release
+- [x] Implement legal hold: `POST /v1/admin/legal-hold/:id` to place/release
       hold; held events are exempt from any lifecycle delete and remain
       queryable/exportable.
-- [ ] Default new events to `LEGAL_HOLD_DEFAULT` on ingest.
+- [x] Default new events to `LEGAL_HOLD_DEFAULT` on ingest.
 - [ ] Document jurisdiction override via `RETENTION_DAYS`.
 
 ### Acceptance criteria
@@ -265,16 +265,16 @@ coverage gating, and a reproducible container build.
 
 ### Tasks
 
-- [ ] Unit tests for chain hashing, dedup, redaction, pagination, and
+- [x] Unit tests for chain hashing, dedup, redaction, pagination, and
   export serialization.
-- [ ] Integration tests with Kafka, Postgres, S3-compatible store, and KMS
+- [x] Integration tests with Kafka, Postgres, S3-compatible store, and KMS
   mock covering ingest -> chain -> anchor -> verify -> export.
-- [ ] Tamper-detection regression test: flip a bit, assert verifier reports
+- [x] Tamper-detection regression test: flip a bit, assert verifier reports
   the offending event.
-- [ ] Coverage gate in CI (codecov) with target >= 80% on `internal/...`.
-- [ ] Docker image build (`Dockerfile`) and `Makefile` targets for
+- [x] Coverage gate in CI (codecov) with target >= 80% on `internal/...`.
+- [x] Docker image build (`Dockerfile`) and `Makefile` targets for
   build/test/lint/coverage.
-- [ ] README "Local Development" section verified end-to-end.
+- [x] README "Local Development" section verified end-to-end.
 
 ### Acceptance criteria
 
