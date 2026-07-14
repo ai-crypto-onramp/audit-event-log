@@ -1,4 +1,4 @@
-.PHONY: build test run lint docker-build docker-run clean coverage coverage-testable verify-chain
+.PHONY: build test run lint cover docker-build docker-run clean coverage-testable verify-chain
 
 TESTABLE_PKGS := ./internal/app/...,./internal/kms/...,./internal/api/...,./internal/export/...,./internal/store/migrations/...,./internal/cli/...,./internal/redaction/...
 TESTABLE_DIRS := ./internal/app/... ./internal/kms/... ./internal/api/... ./internal/export/... ./internal/store/migrations/... ./internal/cli/... ./internal/redaction/...
@@ -15,9 +15,8 @@ run:
 lint:
 	golangci-lint run
 
-coverage:
-	go test ./cmd/... ./internal/... -race -coverprofile=coverage.out -coverpkg=./cmd/...,./internal/...
-	go tool cover -func=coverage.out | grep -E 'internal/' | awk '{print}'
+cover: test
+	go tool cover -func=coverage.out | tail -1
 
 coverage-testable:
 	go test $(TESTABLE_DIRS) -race -coverprofile=/tmp/cov_testable.out -coverpkg=$(TESTABLE_PKGS)
