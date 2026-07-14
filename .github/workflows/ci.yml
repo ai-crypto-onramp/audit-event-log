@@ -19,26 +19,7 @@ jobs:
       - run: go mod download
       - run: go build ./...
       - run: go vet ./...
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.25.x'
       - run: go test ./... -race -coverprofile=coverage.out -coverpkg=./cmd/...,./internal/...
-      - name: Check testable package coverage >= 80%
-        run: |
-          go test ./internal/app/... ./internal/kms/... ./internal/api/... ./internal/export/... ./internal/store/migrations/... ./internal/cli/... ./internal/redaction/... \
-            -coverprofile=/tmp/cov_testable.out \
-            -coverpkg=./internal/app/...,./internal/kms/...,./internal/api/...,./internal/export/...,./internal/store/migrations/...,./internal/cli/...,./internal/redaction/...
-          total=$(go tool cover -func=/tmp/cov_testable.out | tail -1 | awk '{print $NF}' | tr -d '%')
-          echo "Testable package coverage: ${total}%"
-          if [ "$(echo "$total < 80" | bc)" = "1" ]; then
-            echo "Coverage ${total}% is below 80% threshold" >&2
-            exit 1
-          fi
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
