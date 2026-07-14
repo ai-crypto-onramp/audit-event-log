@@ -1,4 +1,4 @@
-.PHONY: build test run lint cover docker-build docker-run clean coverage-testable verify-chain
+.PHONY: build test run lint cover docker-build docker-run clean coverage-testable verify-chain migrate-up migrate-down
 
 TESTABLE_PKGS := ./internal/app/...,./internal/kms/...,./internal/api/...,./internal/export/...,./internal/store/migrations/...,./internal/cli/...,./internal/redaction/...
 TESTABLE_DIRS := ./internal/app/... ./internal/kms/... ./internal/api/... ./internal/export/... ./internal/store/migrations/... ./internal/cli/... ./internal/redaction/...
@@ -39,3 +39,9 @@ docker-run:
 
 clean:
 	rm -rf bin/ coverage.out /tmp/cov_testable.out
+
+migrate-up:
+	DB_URL="$(DB_URL)" go run ./cmd/migrate --up
+
+migrate-down:
+	DB_URL="$(DB_URL)" go run ./cmd/migrate --down
