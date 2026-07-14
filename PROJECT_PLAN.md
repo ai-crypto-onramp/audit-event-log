@@ -261,7 +261,7 @@ tier lifecycle to Glacier / Deep Archive.
 ### Goal
 
 Reach production-grade confidence: comprehensive unit + integration tests,
-coverage gating, and a reproducible container build.
+and a reproducible container build.
 
 ### Tasks
 
@@ -271,7 +271,7 @@ coverage gating, and a reproducible container build.
   mock covering ingest -> chain -> anchor -> verify -> export.
 - [x] Tamper-detection regression test: flip a bit, assert verifier reports
   the offending event.
-- [x] Coverage gate in CI (codecov) reporting coverage on `internal/...`.
+- [x] Coverage reported in CI (codecov) on `internal/...`.
 - [x] Docker image build (`Dockerfile`) and `Makefile` targets for
   build/test/lint/coverage.
 - [x] README "Local Development" section verified end-to-end.
