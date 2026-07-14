@@ -20,6 +20,16 @@ func mustTime(s string) time.Time {
 	return t.UTC()
 }
 
+// testUUIDs are fixed UUIDs used as event IDs in tests so they pass the
+// validID check in the API handlers.
+var testUUIDs = []string{
+	"00000000-0000-4000-8000-000000000001",
+	"00000000-0000-4000-8000-000000000002",
+	"00000000-0000-4000-8000-000000000003",
+	"00000000-0000-4000-8000-000000000004",
+	"00000000-0000-4000-8000-000000000005",
+}
+
 func seedChain(t *testing.T, all *memstore.All) []*store.Event {
 	t.Helper()
 	ctx := context.Background()
@@ -28,7 +38,7 @@ func seedChain(t *testing.T, all *memstore.All) []*store.Event {
 	base := mustTime("2026-07-13T10:00:00Z")
 	for i := 0; i < 5; i++ {
 		e := &store.Event{
-			ID:            "e" + string(rune('1'+i)),
+			ID:            testUUIDs[i],
 			TS:            base.Add(time.Duration(i) * time.Second),
 			SourceService: "orch",
 			ActorID:       "u1",
@@ -36,7 +46,7 @@ func seedChain(t *testing.T, all *memstore.All) []*store.Event {
 			TargetType:    "transaction",
 			TargetID:      "tx" + string(rune('1'+i)),
 			PayloadHash:   []byte("ph"),
-			PayloadRef:    "e" + string(rune('1'+i)),
+			PayloadRef:    testUUIDs[i],
 			PrevHash:      append([]byte(nil), prev...),
 		}
 		e.ThisHash = chain.EventHash(e)
@@ -149,13 +159,13 @@ func TestListEventsPagination(t *testing.T) {
 
 func TestGetEvent(t *testing.T) {
 	h, _, _ := newRouter(t)
-	rec := do(t, h, "GET", "/v1/events/e1", nil, auth.RoleReader)
+	rec := do(t, h, "GET", "/v1/events/00000000-0000-4000-8000-000000000001", nil, auth.RoleReader)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("get: %d %s", rec.Code, rec.Body.String())
 	}
 	var ev map[string]any
 	_ = json.Unmarshal(rec.Body.Bytes(), &ev)
-	if ev["id"] != "e1" {
+	if ev["id"] != testUUIDs[0] {
 		t.Errorf("id: %v", ev["id"])
 	}
 }
@@ -170,7 +180,7 @@ func TestGetEventNotFound(t *testing.T) {
 
 func TestVerifyEventOK(t *testing.T) {
 	h, _, _ := newRouter(t)
-	rec := do(t, h, "GET", "/v1/events/e3/verify-chain", nil, auth.RoleReader)
+	rec := do(t, h, "GET", "/v1/events/00000000-0000-4000-8000-000000000003/verify-chain", nil, auth.RoleReader)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("verify: %d %s", rec.Code, rec.Body.String())
 	}
@@ -185,14 +195,14 @@ func TestVerifyEventDetectsTamper(t *testing.T) {
 	h, all, _ := newRouter(t)
 	ctx := context.Background()
 	// Tamper an event in-place via the store's internal map.
-	all.Events.SetLegalHold(ctx, "e2", false)
+	all.Events.SetLegalHold(ctx, testUUIDs[1], false)
 	// Mutate actor_id directly in the internal map. We use a small hack:
 	// re-insert via Insert would be deduped, so we touch the map through
 	// a helper exposed only for tests.
-	tamperEvent(all, "e2", func(e *store.Event) {
+	tamperEvent(all, testUUIDs[1], func(e *store.Event) {
 		e.ActorID = "tampered"
 	})
-	rec := do(t, h, "GET", "/v1/events/e2/verify-chain", nil, auth.RoleReader)
+	rec := do(t, h, "GET", "/v1/events/00000000-0000-4000-8000-000000000002/verify-chain", nil, auth.RoleReader)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("verify: %d %s", rec.Code, rec.Body.String())
 	}
@@ -267,20 +277,20 @@ func TestAdminVerifyChainRequiresAdmin(t *testing.T) {
 func TestLegalHold(t *testing.T) {
 	h, all, _ := newRouter(t)
 	body := []byte(`{"hold":true}`)
-	rec := do(t, h, "POST", "/v1/admin/legal-hold/e1", body, auth.RoleAdmin)
+	rec := do(t, h, "POST", "/v1/admin/legal-hold/00000000-0000-4000-8000-000000000001", body, auth.RoleAdmin)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("set hold: %d %s", rec.Code, rec.Body.String())
 	}
-	got, _ := all.Events.Get(context.Background(), "e1")
+	got, _ := all.Events.Get(context.Background(), testUUIDs[0])
 	if !got.LegalHold {
 		t.Error("legal hold not set")
 	}
 	body = []byte(`{"hold":false}`)
-	rec = do(t, h, "POST", "/v1/admin/legal-hold/e1", body, auth.RoleAdmin)
+	rec = do(t, h, "POST", "/v1/admin/legal-hold/00000000-0000-4000-8000-000000000001", body, auth.RoleAdmin)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("release hold: %d", rec.Code)
 	}
-	got, _ = all.Events.Get(context.Background(), "e1")
+	got, _ = all.Events.Get(context.Background(), testUUIDs[0])
 	if got.LegalHold {
 		t.Error("legal hold not released")
 	}

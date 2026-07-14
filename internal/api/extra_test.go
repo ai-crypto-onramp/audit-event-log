@@ -93,13 +93,13 @@ func TestGetEventWithPayloadURL(t *testing.T) {
 		Verifier:       &chainVerifier{Events: all.Events, Anchors: all.Anchors},
 	}
 	h := NewRouter(d)
-	rec := do(t, h, "GET", "/v1/events/e1", nil, auth.RoleReader)
+	rec := do(t, h, "GET", "/v1/events/00000000-0000-4000-8000-000000000001", nil, auth.RoleReader)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("get: %d %s", rec.Code, rec.Body.String())
 	}
 	var ev map[string]any
 	_ = json.Unmarshal(rec.Body.Bytes(), &ev)
-	if ev["payload_url"] != "https://presigned/e1" {
+	if ev["payload_url"] != "https://presigned/00000000-0000-4000-8000-000000000001" {
 		t.Errorf("payload_url: %v", ev["payload_url"])
 	}
 }
@@ -123,7 +123,7 @@ func TestGetEventPresignError(t *testing.T) {
 		Verifier:       &chainVerifier{Events: all.Events, Anchors: all.Anchors},
 	}
 	h := NewRouter(d)
-	rec := do(t, h, "GET", "/v1/events/e1", nil, auth.RoleReader)
+	rec := do(t, h, "GET", "/v1/events/00000000-0000-4000-8000-000000000001", nil, auth.RoleReader)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("get: %d", rec.Code)
 	}
@@ -149,7 +149,7 @@ func TestGetEventInternalError(t *testing.T) {
 		Exports: all.Exports,
 	}
 	h := NewRouter(d)
-	rec := do(t, h, "GET", "/v1/events/e1", nil, auth.RoleReader)
+	rec := do(t, h, "GET", "/v1/events/00000000-0000-4000-8000-000000000001", nil, auth.RoleReader)
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rec.Code)
 	}
@@ -176,7 +176,7 @@ func (errGetStore) MarkAnchored(context.Context, time.Time, string) (int64, erro
 func TestVerifyEventFirstEventZeroPrev(t *testing.T) {
 	h, _, _ := newRouter(t)
 	// First event e1 should use ZeroHash as prev.
-	rec := do(t, h, "GET", "/v1/events/e1/verify-chain", nil, auth.RoleReader)
+	rec := do(t, h, "GET", "/v1/events/00000000-0000-4000-8000-000000000001/verify-chain", nil, auth.RoleReader)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("verify: %d", rec.Code)
 	}
@@ -199,7 +199,7 @@ func TestVerifyEventListError(t *testing.T) {
 		Exports: all.Exports,
 	}
 	h := NewRouter(d)
-	rec := do(t, h, "GET", "/v1/events/e3/verify-chain", nil, auth.RoleReader)
+	rec := do(t, h, "GET", "/v1/events/00000000-0000-4000-8000-000000000003/verify-chain", nil, auth.RoleReader)
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rec.Code)
 	}
@@ -348,7 +348,7 @@ func TestGetExportInternalError(t *testing.T) {
 		Exports: errGetJobStore{},
 	}
 	h := NewRouter(d)
-	rec := do(t, h, "GET", "/v1/exports/x", nil, auth.RoleReader)
+	rec := do(t, h, "GET", "/v1/exports/00000000-0000-0000-0000-000000000009", nil, auth.RoleReader)
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rec.Code)
 	}
@@ -409,7 +409,7 @@ func (errVerifier) VerifyWindow(ctx context.Context, from, to time.Time) (chain.
 
 func TestLegalHoldMalformedJSON(t *testing.T) {
 	h, _, _ := newRouter(t)
-	rec := do(t, h, "POST", "/v1/admin/legal-hold/e1", []byte("not-json"), auth.RoleAdmin)
+	rec := do(t, h, "POST", "/v1/admin/legal-hold/00000000-0000-4000-8000-000000000001", []byte("not-json"), auth.RoleAdmin)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rec.Code)
 	}
@@ -425,7 +425,7 @@ func TestLegalHoldInternalError(t *testing.T) {
 		LegalHold: errLegalHold{},
 	}
 	h := NewRouter(d)
-	rec := do(t, h, "POST", "/v1/admin/legal-hold/e1", []byte(`{"hold":true}`), auth.RoleAdmin)
+	rec := do(t, h, "POST", "/v1/admin/legal-hold/00000000-0000-4000-8000-000000000001", []byte(`{"hold":true}`), auth.RoleAdmin)
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rec.Code)
 	}
@@ -440,7 +440,7 @@ func (errLegalHold) SetLegalHold(ctx context.Context, id string, hold bool) erro
 func TestLegalHoldEmptyBody(t *testing.T) {
 	h, _, _ := newRouter(t)
 	// Empty body -> decode returns io.EOF, which we tolerate; hold defaults to false.
-	rec := do(t, h, "POST", "/v1/admin/legal-hold/e1", nil, auth.RoleAdmin)
+	rec := do(t, h, "POST", "/v1/admin/legal-hold/00000000-0000-4000-8000-000000000001", nil, auth.RoleAdmin)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
@@ -489,7 +489,7 @@ func TestLegalHoldNotConfigured(t *testing.T) {
 		Exports: all.Exports,
 	}
 	h := NewRouter(d)
-	rec := do(t, h, "POST", "/v1/admin/legal-hold/e1", []byte(`{"hold":true}`), auth.RoleAdmin)
+	rec := do(t, h, "POST", "/v1/admin/legal-hold/00000000-0000-4000-8000-000000000001", []byte(`{"hold":true}`), auth.RoleAdmin)
 	if rec.Code != http.StatusNotImplemented {
 		t.Fatalf("expected 501, got %d", rec.Code)
 	}
@@ -560,7 +560,7 @@ func TestVerifyEventGetInternalError(t *testing.T) {
 		Exports: all.Exports,
 	}
 	h := NewRouter(d)
-	rec := do(t, h, "GET", "/v1/events/e1/verify-chain", nil, auth.RoleReader)
+	rec := do(t, h, "GET", "/v1/events/00000000-0000-4000-8000-000000000001/verify-chain", nil, auth.RoleReader)
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rec.Code)
 	}
@@ -605,13 +605,6 @@ func TestNewExportIDUniqueness(t *testing.T) {
 			t.Fatalf("duplicate id: %s", id)
 		}
 		ids[id] = true
-	}
-}
-
-func TestRandomHex(t *testing.T) {
-	h := randomHex(8)
-	if len(h) != 16 {
-		t.Fatalf("len: %d", len(h))
 	}
 }
 

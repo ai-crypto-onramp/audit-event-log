@@ -29,6 +29,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/ai-crypto-onramp/audit-event-log/internal/auth"
@@ -169,6 +170,10 @@ func (d *Deps) handleGetEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "missing id")
 		return
 	}
+	if !validID(id) {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
 	e, err := d.Events.Get(r.Context(), id)
 	if err != nil {
 		if store.IsNotFound(err) {
@@ -196,6 +201,10 @@ func (d *Deps) handleVerifyEvent(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		writeError(w, http.StatusBadRequest, "missing id")
+		return
+	}
+	if !validID(id) {
+		writeError(w, http.StatusNotFound, "not found")
 		return
 	}
 	e, err := d.Events.Get(r.Context(), id)
@@ -289,6 +298,10 @@ func (d *Deps) handleGetExport(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "missing id")
 		return
 	}
+	if !validID(id) {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
 	j, err := d.Exports.GetJob(r.Context(), id)
 	if err != nil {
 		if store.IsNotFound(err) {
@@ -353,6 +366,10 @@ func (d *Deps) handleLegalHold(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		writeError(w, http.StatusBadRequest, "missing id")
+		return
+	}
+	if !validID(id) {
+		writeError(w, http.StatusNotFound, "not found")
 		return
 	}
 	var req legalHoldReq
@@ -444,21 +461,17 @@ func toEventJSONs(events []store.Event, includeHashes bool) []map[string]any {
 	return out
 }
 
-// newExportID returns a UUIDv4 string for an export job. We avoid pulling
-// in the uuid library here for testability; the app layer wires a UUID
-// generator if needed.
+// newExportID returns a UUIDv4 string for an export job.
 var newExportID = func() string {
-	// RFC4122 variant of UUIDv4 generated from time + random bytes is
-	// sufficient for export ids. We fall back to a hex timestamp + counter.
-	return "exp-" + strconv.FormatInt(time.Now().UnixNano(), 16) + "-" + randomHex(8)
+	return uuid.NewString()
 }
 
-func randomHex(n int) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = byte(time.Now().UnixNano() >> uint(i))
-	}
-	return hex.EncodeToString(b)
+// validID reports whether s is a parseable UUID. Used to reject non-UUID
+// path params before they reach the UUID-keyed store, so malformed ids
+// return 404 rather than a 500 from the DB driver.
+func validID(s string) bool {
+	_, err := uuid.Parse(s)
+	return err == nil
 }
 
 // _ guards

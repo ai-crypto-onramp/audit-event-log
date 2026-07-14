@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ai-crypto-onramp/audit-event-log/internal/store"
@@ -335,11 +336,15 @@ func (s *AnchorStore) GetAnchor(ctx context.Context, id int64) (*store.Anchor, e
 type ExportJobStore struct{ pool *pgxpool.Pool }
 
 func (s *ExportJobStore) CreateJob(ctx context.Context, j *store.ExportJob) error {
+	var createdAt any
+	if !j.CreatedAt.IsZero() {
+		createdAt = j.CreatedAt
+	}
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO export_jobs (id, query, format, retention_days, status, created_at)
 		VALUES ($1,$2,$3,$4,$5,COALESCE($6,now()))
 		ON CONFLICT (id) DO NOTHING`,
-		j.ID, j.Query, j.Format, j.RetentionDays, j.Status, j.CreatedAt)
+		j.ID, j.Query, j.Format, j.RetentionDays, j.Status, createdAt)
 	return err
 }
 
@@ -347,11 +352,19 @@ func (s *ExportJobStore) GetJob(ctx context.Context, id string) (*store.ExportJo
 	row := s.pool.QueryRow(ctx, `SELECT id, query, format, retention_days, status, row_count, payload_ref, chain_root, anchor_id, created_at, completed_at FROM export_jobs WHERE id=$1`, id)
 	var j store.ExportJob
 	var completedAt *time.Time
-	if err := row.Scan(&j.ID, &j.Query, &j.Format, &j.RetentionDays, &j.Status, &j.RowCount, &j.PayloadRef, &j.ChainRoot, &j.AnchorID, &j.CreatedAt, &completedAt); err != nil {
+	var uid pgtype.UUID
+	var anchorID *int64
+	if err := row.Scan(&uid, &j.Query, &j.Format, &j.RetentionDays, &j.Status, &j.RowCount, &j.PayloadRef, &j.ChainRoot, &anchorID, &j.CreatedAt, &completedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, &store.ErrNotFound{ID: id}
 		}
 		return nil, err
+	}
+	if uid.Valid {
+		j.ID = uid.String()
+	}
+	if anchorID != nil {
+		j.AnchorID = *anchorID
 	}
 	if completedAt != nil {
 		j.CompletedAt = *completedAt
@@ -386,8 +399,16 @@ func (s *ExportJobStore) ListJobs(ctx context.Context, limit int) ([]*store.Expo
 	for rows.Next() {
 		var j store.ExportJob
 		var completedAt *time.Time
-		if err := rows.Scan(&j.ID, &j.Query, &j.Format, &j.RetentionDays, &j.Status, &j.RowCount, &j.PayloadRef, &j.ChainRoot, &j.AnchorID, &j.CreatedAt, &completedAt); err != nil {
+		var uid pgtype.UUID
+		var anchorID *int64
+		if err := rows.Scan(&uid, &j.Query, &j.Format, &j.RetentionDays, &j.Status, &j.RowCount, &j.PayloadRef, &j.ChainRoot, &anchorID, &j.CreatedAt, &completedAt); err != nil {
 			return nil, err
+		}
+		if uid.Valid {
+			j.ID = uid.String()
+		}
+		if anchorID != nil {
+			j.AnchorID = *anchorID
 		}
 		if completedAt != nil {
 			j.CompletedAt = *completedAt

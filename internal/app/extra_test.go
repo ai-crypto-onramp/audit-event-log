@@ -244,7 +244,7 @@ func TestIngestViaKafkaFakeWithPayloadHash(t *testing.T) {
 	ctx := context.Background()
 	payload := map[string]any{"amount": "100"}
 	body, _ := json.Marshal(map[string]any{
-		"id":             "k1",
+		"id":             "11111111-1111-4111-8111-111111111111",
 		"ts":             "2026-07-13T10:00:00Z",
 		"source_service": "orch",
 		"actor_id":       "u1",
@@ -258,7 +258,7 @@ func TestIngestViaKafkaFakeWithPayloadHash(t *testing.T) {
 		t.Fatalf("ingest: %q", res.Reason)
 	}
 	// Query with reader role.
-	req, _ := http.NewRequest("GET", ts.URL+"/v1/events/k1", nil)
+	req, _ := http.NewRequest("GET", ts.URL+"/v1/events/11111111-1111-4111-8111-111111111111", nil)
 	req.Header.Set(auth.RolesHeader, string(auth.RoleReader))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
