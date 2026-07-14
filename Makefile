@@ -7,16 +7,16 @@ build:
 	go build -o bin/audit-event-log ./cmd/audit-event-log
 
 test:
-	go test ./... -race -coverprofile=coverage.out -coverpkg=./cmd/...,./internal/...
+	go test ./cmd/... ./internal/... -race -coverprofile=coverage.out -coverpkg=./cmd/...,./internal/...
 
 run:
 	go run ./cmd/audit-event-log
 
 lint:
-	go vet ./...
+	golangci-lint run
 
 coverage:
-	go test ./... -race -coverprofile=coverage.out -coverpkg=./cmd/...,./internal/...
+	go test ./cmd/... ./internal/... -race -coverprofile=coverage.out -coverpkg=./cmd/...,./internal/...
 	go tool cover -func=coverage.out | grep -E 'internal/' | awk '{print}'
 
 coverage-testable:
