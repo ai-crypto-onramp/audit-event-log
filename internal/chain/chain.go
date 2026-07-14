@@ -259,6 +259,7 @@ type Report struct {
 // recomputes the hash chain. It returns a Report summarizing the outcome.
 // If signer is non-nil the report's RootHash is signed and the signature
 // is embedded in the report.
+//nolint:gocyclo // sweep is inherently complex
 func Sweep(ctx context.Context, events store.EventStore, anchors store.AnchorStore, from, to time.Time, signer func([]byte) ([]byte, string, error)) (*Report, error) {
 	r := &Report{From: from, To: to, Status: StatusOK}
 	var all []*store.Event

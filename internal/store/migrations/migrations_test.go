@@ -41,20 +41,6 @@ func (d *fakeDB) exec(_ context.Context, q string, args ...any) error {
 	return nil
 }
 
-func (d *fakeDB) query(_ context.Context, v string) (bool, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	return d.applied[v], nil
-}
-
-// markApplied lets the test simulate a previously-applied version so the
-// runner skips it.
-func (d *fakeDB) markApplied(v string) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.applied[v] = true
-}
-
 // After running Up, the fakeDB won't have set applied=true via the runner
 // (the runner inserts into schema_migrations via exec, not via the
 // in-memory map). We override query so the runner sees recorded versions.

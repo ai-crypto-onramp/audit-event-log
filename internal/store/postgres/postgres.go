@@ -173,7 +173,6 @@ func (s *EventStore) List(ctx context.Context, f store.Filter) (*store.ListResul
 	if !f.Cursor.TS.IsZero() || f.Cursor.ID != "" {
 		q += fmt.Sprintf(" AND (ts, id) > ($%d, $%d)", n, n+1)
 		args = append(args, f.Cursor.TS, f.Cursor.ID)
-		n += 2
 	}
 	q += " ORDER BY ts ASC, id ASC"
 	limit := f.Limit
@@ -284,7 +283,6 @@ func (s *AnchorStore) ListAnchors(ctx context.Context, from, to time.Time) ([]*s
 	if !to.IsZero() {
 		q += fmt.Sprintf(" AND anchored_at <= $%d", n)
 		args = append(args, to)
-		n++
 	}
 	q += " ORDER BY anchored_at ASC"
 	rows, err := s.pool.Query(ctx, q, args...)

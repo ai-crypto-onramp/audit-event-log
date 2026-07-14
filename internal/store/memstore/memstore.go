@@ -80,6 +80,7 @@ func (s *EventStore) Get(_ context.Context, id string) (*store.Event, error) {
 }
 
 // List returns events matching the filter, ordered by (ts ASC, id ASC).
+//nolint:gocyclo // many filter fields to handle
 func (s *EventStore) List(_ context.Context, f store.Filter) (*store.ListResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

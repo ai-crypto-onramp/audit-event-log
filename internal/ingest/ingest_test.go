@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/ai-crypto-onramp/audit-event-log/internal/event"
 	"github.com/ai-crypto-onramp/audit-event-log/internal/redaction"
@@ -35,11 +34,6 @@ func envelopeJSON(id, ts string, payload map[string]any, payloadHash string) []b
 	}
 	b, _ := json.Marshal(m)
 	return b
-}
-
-func mustTime(s string) time.Time {
-	t, _ := time.Parse(time.RFC3339Nano, s)
-	return t.UTC()
 }
 
 func newPipeline(t *testing.T, redactor Redactor, retentionDays int, legalHold bool) (*Pipeline, *memstore.All, *s3.Fake) {
