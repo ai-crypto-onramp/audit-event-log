@@ -232,18 +232,18 @@ func TestAnchorStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("insert: %v", err)
 	}
-	if id != 1 {
-		t.Errorf("id: %d", id)
+	if id == "" {
+		t.Errorf("id: %q", id)
 	}
 	id2, _ := s.InsertAnchor(ctx, &store.Anchor{RootHash: []byte("root2"), EventCount: 5})
-	if id2 != 2 {
-		t.Errorf("id2: %d", id2)
+	if id2 == "" {
+		t.Errorf("id2: %q", id2)
 	}
 	all, _ := s.ListAnchors(ctx, time.Time{}, time.Time{})
 	if len(all) != 2 {
 		t.Errorf("list: %d", len(all))
 	}
-	got, _ := s.GetAnchor(ctx, 1)
+	got, _ := s.GetAnchor(ctx, id)
 	if got == nil || string(got.RootHash) != "root1" {
 		t.Errorf("get: %+v", got)
 	}
@@ -252,19 +252,19 @@ func TestAnchorStore(t *testing.T) {
 func TestExportJobStore(t *testing.T) {
 	s := NewExportJobStore()
 	ctx := context.Background()
-	j := &store.ExportJob{ID: "x1", Format: "json", Status: "pending"}
+	j := &store.ExportJob{ID: "x1", Format: "JSON", Status: "PENDING"}
 	if err := s.CreateJob(ctx, j); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if err := s.UpdateJob(ctx, "x1", "complete", 100, "s3://bucket/x1", []byte("root"), 1, time.Now()); err != nil {
+	if err := s.UpdateJob(ctx, "x1", "COMPLETE", 100, "s3://bucket/x1", []byte("root"), "anchor-1", time.Now()); err != nil {
 		t.Fatalf("update: %v", err)
 	}
 	got, _ := s.GetJob(ctx, "x1")
-	if got.Status != "complete" || got.RowCount != 100 || got.AnchorID != 1 {
+	if got.Status != "COMPLETE" || got.RowCount != 100 || got.AnchorID != "anchor-1" {
 		t.Errorf("got: %+v", got)
 	}
 	// List
-	j2 := &store.ExportJob{ID: "x2", Format: "csv", Status: "pending"}
+	j2 := &store.ExportJob{ID: "x2", Format: "CSV", Status: "PENDING"}
 	_ = s.CreateJob(ctx, j2)
 	all, _ := s.ListJobs(ctx, 10)
 	if len(all) != 2 {

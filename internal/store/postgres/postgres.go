@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -221,7 +222,7 @@ func (s *EventStore) ChainHead(ctx context.Context) (*store.Event, error) {
 }
 
 func (s *EventStore) SetLegalHold(ctx context.Context, id string, hold bool) error {
-	ct, err := s.pool.Exec(ctx, `UPDATE audit_events SET legal_hold=$2 WHERE id=$1`, id, hold)
+	ct, err := s.pool.Exec(ctx, `UPDATE audit_events SET legal_hold=$2, updated_at=now() WHERE id=$1`, id, hold)
 	if err != nil {
 		return err
 	}
@@ -232,7 +233,7 @@ func (s *EventStore) SetLegalHold(ctx context.Context, id string, hold bool) err
 }
 
 func (s *EventStore) MarkAnchored(ctx context.Context, toTS time.Time, toID string) (int64, error) {
-	ct, err := s.pool.Exec(ctx, `UPDATE audit_events SET anchored=true WHERE (ts, id) <= ($1, $2) AND anchored=false`, toTS, toID)
+	ct, err := s.pool.Exec(ctx, `UPDATE audit_events SET anchored=true, updated_at=now() WHERE (ts, id) <= ($1, $2) AND anchored=false`, toTS, toID)
 	if err != nil {
 		return 0, err
 	}
@@ -258,16 +259,17 @@ func scanEvent(s scanner) (*store.Event, error) {
 
 type AnchorStore struct{ pool *pgxpool.Pool }
 
-func (s *AnchorStore) InsertAnchor(ctx context.Context, a *store.Anchor) (int64, error) {
+func (s *AnchorStore) InsertAnchor(ctx context.Context, a *store.Anchor) (string, error) {
+	id, _ := uuid.NewV7()
 	row := s.pool.QueryRow(ctx, `
-		INSERT INTO chain_anchors (anchored_at, root_hash, last_event_id, last_event_ts, signature, kms_key_id, notary_url, event_count)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
-		a.AnchoredAt, a.RootHash, a.LastEventID, a.LastEventTS, a.Signature, a.KMSKeyID, a.NotaryURL, a.EventCount)
-	var id int64
-	if err := row.Scan(&id); err != nil {
-		return 0, err
+		INSERT INTO chain_anchors (id, anchored_at, root_hash, last_event_id, last_event_ts, signature, kms_key_id, notary_url, event_count)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+		id, a.AnchoredAt, a.RootHash, a.LastEventID, a.LastEventTS, a.Signature, a.KMSKeyID, a.NotaryURL, a.EventCount)
+	var returnedID string
+	if err := row.Scan(&returnedID); err != nil {
+		return "", err
 	}
-	return id, nil
+	return returnedID, nil
 }
 
 func (s *AnchorStore) ListAnchors(ctx context.Context, from, to time.Time) ([]*store.Anchor, error) {
@@ -309,14 +311,14 @@ func (s *AnchorStore) ListAnchors(ctx context.Context, from, to time.Time) ([]*s
 	return out, rows.Err()
 }
 
-func (s *AnchorStore) GetAnchor(ctx context.Context, id int64) (*store.Anchor, error) {
+func (s *AnchorStore) GetAnchor(ctx context.Context, id string) (*store.Anchor, error) {
 	row := s.pool.QueryRow(ctx, `SELECT id, anchored_at, root_hash, last_event_id, last_event_ts, signature, kms_key_id, notary_url, event_count FROM chain_anchors WHERE id=$1`, id)
 	var a store.Anchor
 	var lastID *string
 	var lastTS *time.Time
 	if err := row.Scan(&a.ID, &a.AnchoredAt, &a.RootHash, &lastID, &lastTS, &a.Signature, &a.KMSKeyID, &a.NotaryURL, &a.EventCount); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, &store.ErrNotFound{}
+			return nil, &store.ErrNotFound{ID: id}
 		}
 		return nil, err
 	}
@@ -351,7 +353,7 @@ func (s *ExportJobStore) GetJob(ctx context.Context, id string) (*store.ExportJo
 	var j store.ExportJob
 	var completedAt *time.Time
 	var uid pgtype.UUID
-	var anchorID *int64
+	var anchorID *string
 	if err := row.Scan(&uid, &j.Query, &j.Format, &j.RetentionDays, &j.Status, &j.RowCount, &j.PayloadRef, &j.ChainRoot, &anchorID, &j.CreatedAt, &completedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, &store.ErrNotFound{ID: id}
@@ -370,9 +372,9 @@ func (s *ExportJobStore) GetJob(ctx context.Context, id string) (*store.ExportJo
 	return &j, nil
 }
 
-func (s *ExportJobStore) UpdateJob(ctx context.Context, id string, status string, rowCount int64, payloadRef string, chainRoot []byte, anchorID int64, completedAt time.Time) error {
+func (s *ExportJobStore) UpdateJob(ctx context.Context, id string, status string, rowCount int64, payloadRef string, chainRoot []byte, anchorID string, completedAt time.Time) error {
 	ct, err := s.pool.Exec(ctx, `
-		UPDATE export_jobs SET status=$2, row_count=$3, payload_ref=$4, chain_root=$5, anchor_id=$6, completed_at=COALESCE($7, completed_at)
+		UPDATE export_jobs SET status=$2, row_count=$3, payload_ref=$4, chain_root=$5, anchor_id=$6, completed_at=COALESCE($7, completed_at), updated_at=now()
 		WHERE id=$1`,
 		id, status, rowCount, payloadRef, chainRoot, anchorID, completedAt)
 	if err != nil {
@@ -398,7 +400,7 @@ func (s *ExportJobStore) ListJobs(ctx context.Context, limit int) ([]*store.Expo
 		var j store.ExportJob
 		var completedAt *time.Time
 		var uid pgtype.UUID
-		var anchorID *int64
+		var anchorID *string
 		if err := rows.Scan(&uid, &j.Query, &j.Format, &j.RetentionDays, &j.Status, &j.RowCount, &j.PayloadRef, &j.ChainRoot, &anchorID, &j.CreatedAt, &completedAt); err != nil {
 			return nil, err
 		}
@@ -421,10 +423,11 @@ func (s *ExportJobStore) ListJobs(ctx context.Context, limit int) ([]*store.Expo
 type DeadLetterStore struct{ pool *pgxpool.Pool }
 
 func (s *DeadLetterStore) Append(ctx context.Context, dl *store.DeadLetter) error {
+	id, _ := uuid.NewV7()
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO dead_letter (topic, partition_no, offset_no, key, payload, reason)
-		VALUES ($1,$2,$3,$4,$5,$6)`,
-		dl.Topic, dl.Partition, dl.Offset, dl.Key, dl.Payload, dl.Reason)
+		INSERT INTO dead_letter (id, topic, partition_no, offset_no, key, payload, reason)
+		VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+		id, dl.Topic, dl.Partition, dl.Offset, dl.Key, dl.Payload, dl.Reason)
 	return err
 }
 

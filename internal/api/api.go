@@ -265,8 +265,10 @@ func (d *Deps) handleCreateExport(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "malformed json")
 		return
 	}
-	if req.Format != "json" && req.Format != "csv" {
-		req.Format = "json"
+	// Normalize format to uppercase enum literal; default to JSON.
+	req.Format = strings.ToUpper(req.Format)
+	if req.Format != "JSON" && req.Format != "CSV" {
+		req.Format = "JSON"
 	}
 	if req.RetentionDays <= 0 {
 		req.RetentionDays = 2555
@@ -280,14 +282,14 @@ func (d *Deps) handleCreateExport(w http.ResponseWriter, r *http.Request) {
 		Query:         []byte(req.Query),
 		Format:        req.Format,
 		RetentionDays: req.RetentionDays,
-		Status:        "pending",
+		Status:        "PENDING",
 	}
 	if err := d.Exports.CreateJob(r.Context(), job); err != nil {
 		writeError(w, http.StatusInternalServerError, "create: "+err.Error())
 		return
 	}
 	metrics.ExportsCreated.WithLabelValues(req.Format).Inc()
-	writeJSON(w, http.StatusAccepted, map[string]any{"id": id, "status": "pending"})
+	writeJSON(w, http.StatusAccepted, map[string]any{"id": id, "status": "PENDING"})
 }
 
 // --- GET /v1/exports/{id} ---
@@ -330,7 +332,7 @@ func (d *Deps) handleGetExport(w http.ResponseWriter, r *http.Request) {
 	if len(j.ChainRoot) == 32 {
 		out["chain_root"] = chain.HashHex(j.ChainRoot)
 	}
-	if j.AnchorID != 0 {
+	if j.AnchorID != "" {
 		out["anchor_id"] = j.AnchorID
 	}
 	if !j.CompletedAt.IsZero() {
@@ -461,9 +463,10 @@ func toEventJSONs(events []store.Event, includeHashes bool) []map[string]any {
 	return out
 }
 
-// newExportID returns a UUIDv4 string for an export job.
+// newExportID returns a UUIDv7 string for an export job.
 var newExportID = func() string {
-	return uuid.NewString()
+	id, _ := uuid.NewV7()
+	return id.String()
 }
 
 // validID reports whether s is a parseable UUID. Used to reject non-UUID

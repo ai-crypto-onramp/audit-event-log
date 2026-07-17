@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/ai-crypto-onramp/audit-event-log/internal/store"
 )
 
@@ -190,19 +192,18 @@ func (s *EventStore) TamperForTest(id string, fn func(*store.Event)) {
 type AnchorStore struct {
 	mu      sync.Mutex
 	anchors []*store.Anchor
-	nextID  int64
 }
 
 // NewAnchorStore returns an empty in-memory AnchorStore.
 func NewAnchorStore() *AnchorStore { return &AnchorStore{} }
 
 // InsertAnchor persists a new anchor and returns its assigned id.
-func (s *AnchorStore) InsertAnchor(_ context.Context, a *store.Anchor) (int64, error) {
+func (s *AnchorStore) InsertAnchor(_ context.Context, a *store.Anchor) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.nextID++
 	c := *a
-	c.ID = s.nextID
+	id, _ := uuid.NewV7()
+	c.ID = id.String()
 	if c.AnchoredAt.IsZero() {
 		c.AnchoredAt = time.Now().UTC()
 	}
@@ -230,7 +231,7 @@ func (s *AnchorStore) ListAnchors(_ context.Context, from, to time.Time) ([]*sto
 }
 
 // GetAnchor returns a single anchor by id.
-func (s *AnchorStore) GetAnchor(_ context.Context, id int64) (*store.Anchor, error) {
+func (s *AnchorStore) GetAnchor(_ context.Context, id string) (*store.Anchor, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, a := range s.anchors {
@@ -239,7 +240,7 @@ func (s *AnchorStore) GetAnchor(_ context.Context, id int64) (*store.Anchor, err
 			return &c, nil
 		}
 	}
-	return nil, &store.ErrNotFound{ID: ""}
+	return nil, &store.ErrNotFound{ID: id}
 }
 
 // --- ExportJobStore ---
@@ -281,7 +282,7 @@ func (s *ExportJobStore) GetJob(_ context.Context, id string) (*store.ExportJob,
 }
 
 // UpdateJob updates an export job's status/result fields.
-func (s *ExportJobStore) UpdateJob(_ context.Context, id string, status string, rowCount int64, payloadRef string, chainRoot []byte, anchorID int64, completedAt time.Time) error {
+func (s *ExportJobStore) UpdateJob(_ context.Context, id string, status string, rowCount int64, payloadRef string, chainRoot []byte, anchorID string, completedAt time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	j, ok := s.jobs[id]
@@ -319,9 +320,8 @@ func (s *ExportJobStore) ListJobs(_ context.Context, limit int) ([]*store.Export
 
 // DeadLetterStore implements store.DeadLetterStore in memory.
 type DeadLetterStore struct {
-	mu     sync.Mutex
-	items  []*store.DeadLetter
-	nextID int64
+	mu    sync.Mutex
+	items []*store.DeadLetter
 }
 
 // NewDeadLetterStore returns an empty in-memory DeadLetterStore.
@@ -331,9 +331,9 @@ func NewDeadLetterStore() *DeadLetterStore { return &DeadLetterStore{} }
 func (s *DeadLetterStore) Append(_ context.Context, dl *store.DeadLetter) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.nextID++
 	c := *dl
-	c.ID = s.nextID
+	id, _ := uuid.NewV7()
+	c.ID = id.String()
 	if c.RejectedAt.IsZero() {
 		c.RejectedAt = time.Now().UTC()
 	}

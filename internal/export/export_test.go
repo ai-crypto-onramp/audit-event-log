@@ -86,16 +86,16 @@ func TestRunJobJSON(t *testing.T) {
 	r, all, fake := newRunner(t, true)
 	job := &store.ExportJob{
 		ID:            "exp1",
-		Format:        "json",
+		Format:        "JSON",
 		RetentionDays: 100,
-		Status:        "pending",
+		Status:        "PENDING",
 	}
 	_ = all.Exports.CreateJob(ctx, job)
 	if err := r.RunJob(ctx, job); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	got, _ := all.Exports.GetJob(ctx, "exp1")
-	if got.Status != "complete" {
+	if got.Status != "COMPLETE" {
 		t.Errorf("status: %s", got.Status)
 	}
 	if got.RowCount != 4 {
@@ -104,7 +104,7 @@ func TestRunJobJSON(t *testing.T) {
 	if got.PayloadRef == "" {
 		t.Error("missing payload ref")
 	}
-	if got.AnchorID == 0 {
+	if got.AnchorID == "" {
 		t.Error("missing anchor id")
 	}
 	if len(got.ChainRoot) != 32 {
@@ -125,16 +125,16 @@ func TestRunJobCSV(t *testing.T) {
 	r, all, fake := newRunner(t, false)
 	job := &store.ExportJob{
 		ID:            "exp2",
-		Format:        "csv",
+		Format:        "CSV",
 		RetentionDays: 100,
-		Status:        "pending",
+		Status:        "PENDING",
 	}
 	_ = all.Exports.CreateJob(ctx, job)
 	if err := r.RunJob(ctx, job); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	got, _ := all.Exports.GetJob(ctx, "exp2")
-	if got.Status != "complete" {
+	if got.Status != "COMPLETE" {
 		t.Errorf("status: %s", got.Status)
 	}
 	if got.RowCount != 4 {
@@ -162,9 +162,9 @@ func TestRunJobFilter(t *testing.T) {
 	qb, _ := json.Marshal(query)
 	job := &store.ExportJob{
 		ID:            "exp3",
-		Format:        "json",
+		Format:        "JSON",
 		RetentionDays: 100,
-		Status:        "pending",
+		Status:        "PENDING",
 		Query:         qb,
 	}
 	_ = all.Exports.CreateJob(ctx, job)
@@ -187,14 +187,14 @@ func TestRunJobFailedMarksJob(t *testing.T) {
 		PayloadBucket: "bkt",
 		Payloads:      &s3PutAdapter{s3.NewFake()},
 	})
-	job := &store.ExportJob{ID: "exp4", Format: "json", Status: "pending"}
+	job := &store.ExportJob{ID: "exp4", Format: "JSON", Status: "PENDING"}
 	_ = all.Exports.CreateJob(ctx, job)
 	if err := r.RunJob(ctx, job); err == nil {
 		t.Fatal("expected error")
 	}
 	got, _ := all.Exports.GetJob(ctx, "exp4")
-	if got.Status != "failed" {
-		t.Errorf("expected failed, got %s", got.Status)
+	if got.Status != "FAILED" {
+		t.Errorf("expected FAILED, got %s", got.Status)
 	}
 }
 

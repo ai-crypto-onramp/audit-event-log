@@ -127,7 +127,7 @@ type EventStore interface {
 
 // Anchor is a persisted KMS-signed chain anchor.
 type Anchor struct {
-	ID          int64
+	ID          string
 	AnchoredAt  time.Time
 	RootHash    []byte
 	LastEventID string
@@ -141,24 +141,24 @@ type Anchor struct {
 // AnchorStore persists and reads chain anchors.
 type AnchorStore interface {
 	// InsertAnchor persists a new anchor and returns its assigned id.
-	InsertAnchor(ctx context.Context, a *Anchor) (int64, error)
+	InsertAnchor(ctx context.Context, a *Anchor) (string, error)
 	// ListAnchors returns anchors ordered by anchored_at ASC within [from,to].
 	ListAnchors(ctx context.Context, from, to time.Time) ([]*Anchor, error)
 	// GetAnchor returns a single anchor by id.
-	GetAnchor(ctx context.Context, id int64) (*Anchor, error)
+	GetAnchor(ctx context.Context, id string) (*Anchor, error)
 }
 
 // ExportJob is the persisted state of a regulator export request.
 type ExportJob struct {
 	ID           string
 	Query        []byte // raw JSON of the query object
-	Format       string // "json" or "csv"
+	Format       string // "JSON" or "CSV"
 	RetentionDays int
-	Status       string // pending, running, complete, failed
+	Status       string // PENDING, RUNNING, COMPLETE, FAILED
 	RowCount     int64
 	PayloadRef   string
 	ChainRoot    []byte
-	AnchorID     int64
+	AnchorID     string
 	CreatedAt    time.Time
 	CompletedAt  time.Time
 }
@@ -172,14 +172,14 @@ type ExportJobStore interface {
 	// UpdateJob marks an export job's status/result fields. Only status,
 	// row_count, payload_ref, chain_root, anchor_id, and completed_at may
 	// be set.
-	UpdateJob(ctx context.Context, id string, status string, rowCount int64, payloadRef string, chainRoot []byte, anchorID int64, completedAt time.Time) error
+	UpdateJob(ctx context.Context, id string, status string, rowCount int64, payloadRef string, chainRoot []byte, anchorID string, completedAt time.Time) error
 	// ListJobs returns all export jobs ordered by created_at DESC (admin view).
 	ListJobs(ctx context.Context, limit int) ([]*ExportJob, error)
 }
 
 // DeadLetter is a rejected-event record.
 type DeadLetter struct {
-	ID         int64
+	ID         string
 	Topic      string
 	Partition  int
 	Offset     int64

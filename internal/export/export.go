@@ -62,7 +62,7 @@ func (r *Runner) RunJob(ctx context.Context, job *store.ExportJob) error {
 	// Parse the query JSON to build a Filter.
 	filter, err := parseQuery(job.Query)
 	if err != nil {
-		_ = r.deps.Jobs.UpdateJob(ctx, job.ID, "failed", 0, "", nil, 0, time.Now())
+		_ = r.deps.Jobs.UpdateJob(ctx, job.ID, "FAILED", 0, "", nil, "", time.Now())
 		return fmt.Errorf("export: parse query: %w", err)
 	}
 	filter.Limit = 10000
@@ -77,7 +77,7 @@ func (r *Runner) RunJob(ctx context.Context, job *store.ExportJob) error {
 		}
 		res, err := r.deps.Events.List(ctx, filter)
 		if err != nil {
-			_ = r.deps.Jobs.UpdateJob(ctx, job.ID, "failed", 0, "", nil, 0, time.Now())
+			_ = r.deps.Jobs.UpdateJob(ctx, job.ID, "FAILED", 0, "", nil, "", time.Now())
 			return fmt.Errorf("export: list: %w", err)
 		}
 		if len(res.Events) == 0 {
@@ -95,15 +95,15 @@ func (r *Runner) RunJob(ctx context.Context, job *store.ExportJob) error {
 	// Serialize.
 	var body []byte
 	switch job.Format {
-	case "json", "":
+	case "JSON", "":
 		body, err = serializeJSON(all)
-	case "csv":
+	case "CSV":
 		body, err = serializeCSV(all)
 	default:
 		err = fmt.Errorf("export: unsupported format %q", job.Format)
 	}
 	if err != nil {
-		_ = r.deps.Jobs.UpdateJob(ctx, job.ID, "failed", 0, "", nil, 0, time.Now())
+		_ = r.deps.Jobs.UpdateJob(ctx, job.ID, "FAILED", 0, "", nil, "", time.Now())
 		return err
 	}
 
@@ -115,7 +115,7 @@ func (r *Runner) RunJob(ctx context.Context, job *store.ExportJob) error {
 	}
 
 	// Sign the root if a signer is configured.
-	var anchorID int64
+	var anchorID string
 	if r.deps.Signer != nil && len(chainRoot) == 32 {
 		sig, keyID, err := r.deps.Signer.Sign(chainRoot)
 		if err == nil {
@@ -147,11 +147,11 @@ func (r *Runner) RunJob(ctx context.Context, job *store.ExportJob) error {
 		StorageClass:  "STANDARD",
 		RetentionDays: retention,
 	}, bytes.NewReader(full)); err != nil {
-		_ = r.deps.Jobs.UpdateJob(ctx, job.ID, "failed", 0, "", nil, 0, time.Now())
+		_ = r.deps.Jobs.UpdateJob(ctx, job.ID, "FAILED", 0, "", nil, "", time.Now())
 		return fmt.Errorf("export: s3 put: %w", err)
 	}
 
-	return r.deps.Jobs.UpdateJob(ctx, job.ID, "complete", int64(len(all)), key, chainRoot, anchorID, time.Now())
+	return r.deps.Jobs.UpdateJob(ctx, job.ID, "COMPLETE", int64(len(all)), key, chainRoot, anchorID, time.Now())
 }
 
 // Manifest is the export artifact's header describing the window, count,
@@ -164,13 +164,13 @@ type Manifest struct {
 	WindowTo      time.Time `json:"window_to,omitempty"`
 	RowCount      int64     `json:"row_count"`
 	ChainRoot     string    `json:"chain_root"`
-	AnchorID      int64     `json:"anchor_id,omitempty"`
+	AnchorID      string    `json:"anchor_id,omitempty"`
 	KMSKeyID      string    `json:"kms_key_id,omitempty"`
 	SignatureHex  string    `json:"signature_hex,omitempty"`
 	GeneratedAt   time.Time `json:"generated_at"`
 }
 
-func buildManifest(job *store.ExportJob, events []*store.Event, root []byte, anchorID int64) Manifest {
+func buildManifest(job *store.ExportJob, events []*store.Event, root []byte, anchorID string) Manifest {
 	m := Manifest{
 		Type:        "audit-export-manifest",
 		ExportID:     job.ID,
@@ -188,7 +188,7 @@ func buildManifest(job *store.ExportJob, events []*store.Event, root []byte, anc
 }
 
 func extForFormat(format string) string {
-	if format == "csv" {
+	if format == "CSV" || format == "csv" {
 		return "csv"
 	}
 	return "json"

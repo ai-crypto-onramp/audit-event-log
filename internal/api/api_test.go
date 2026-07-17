@@ -227,7 +227,7 @@ func TestCreateExportAndPoll(t *testing.T) {
 		t.Fatal("empty export id")
 	}
 	// Simulate job completion.
-	_ = all.Exports.UpdateJob(context.Background(), id, "complete", 5, "exports/"+id, []byte("root"), 1, time.Now())
+	_ = all.Exports.UpdateJob(context.Background(), id, "complete", 5, "exports/"+id, []byte("root"), "anchor-1", time.Now())
 	rec = do(t, h, "GET", "/v1/exports/"+id, nil, auth.RoleReader)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("poll: %d %s", rec.Code, rec.Body.String())

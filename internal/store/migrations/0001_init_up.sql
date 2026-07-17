@@ -1,6 +1,8 @@
 -- audit_events: append-only, hash-chained, searchable index.
 -- One row per ingested audit event. Immutable after insert; no UPDATE or
 -- DELETE path is exposed at the application layer.
+-- Conventions: UUID PKs (app-generated UUIDv7, no DB default), UPPER_CASE enum
+-- TEXT (no CHECK), created_at + updated_at on every table, no DB triggers.
 CREATE TABLE IF NOT EXISTS audit_events (
     id              UUID        PRIMARY KEY,
     ts              TIMESTAMPTZ NOT NULL,
@@ -14,8 +16,10 @@ CREATE TABLE IF NOT EXISTS audit_events (
     prev_hash       BYTEA       NOT NULL,
     this_hash       BYTEA       NOT NULL,
     anchored        BOOLEAN     NOT NULL DEFAULT false,
-    legal_hold     BOOLEAN     NOT NULL DEFAULT false,
-    redacted        BOOLEAN     NOT NULL DEFAULT false
+    legal_hold      BOOLEAN     NOT NULL DEFAULT false,
+    redacted        BOOLEAN     NOT NULL DEFAULT false,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Composite index materializing chain order.
@@ -29,15 +33,17 @@ CREATE INDEX IF NOT EXISTS audit_events_target_ts_idx   ON audit_events (target_
 
 -- Anchor records: one row per periodic KMS-signed Merkle root anchor.
 CREATE TABLE IF NOT EXISTS chain_anchors (
-    id              BIGSERIAL    PRIMARY KEY,
-    anchored_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    id              UUID        PRIMARY KEY,
+    anchored_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     root_hash       BYTEA       NOT NULL,
     last_event_id   UUID,
     last_event_ts   TIMESTAMPTZ,
     signature       BYTEA       NOT NULL,
-    kms_key_id      TEXT         NOT NULL DEFAULT '',
-    notary_url      TEXT         NOT NULL DEFAULT '',
-    event_count     BIGINT       NOT NULL DEFAULT 0
+    kms_key_id      TEXT        NOT NULL DEFAULT '',
+    notary_url       TEXT        NOT NULL DEFAULT '',
+    event_count     BIGINT      NOT NULL DEFAULT 0,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS chain_anchors_anchored_at_idx ON chain_anchors (anchored_at);
 
@@ -45,27 +51,30 @@ CREATE INDEX IF NOT EXISTS chain_anchors_anchored_at_idx ON chain_anchors (ancho
 CREATE TABLE IF NOT EXISTS export_jobs (
     id              UUID        PRIMARY KEY,
     query           JSONB       NOT NULL DEFAULT '{}',
-    format          TEXT        NOT NULL DEFAULT 'json',
+    format          TEXT        NOT NULL DEFAULT 'JSON',
     retention_days  INT         NOT NULL DEFAULT 2555,
-    status          TEXT        NOT NULL DEFAULT 'pending',
+    status          TEXT        NOT NULL DEFAULT 'PENDING',
     row_count       BIGINT      NOT NULL DEFAULT 0,
     payload_ref     TEXT        NOT NULL DEFAULT '',
     chain_root      BYTEA,
-    anchor_id       BIGINT,
+    anchor_id       UUID,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     completed_at    TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS export_jobs_status_idx ON export_jobs (status);
 
 -- Dead-letter: events rejected at ingest for invalid payload/schema.
 CREATE TABLE IF NOT EXISTS dead_letter (
-    id              BIGSERIAL    PRIMARY KEY,
-    topic           TEXT         NOT NULL DEFAULT '',
-    partition_no    INT          NOT NULL DEFAULT 0,
-    offset_no       BIGINT       NOT NULL DEFAULT 0,
-    key             TEXT         NOT NULL DEFAULT '',
-    payload         BYTEA        NOT NULL,
-    reason          TEXT         NOT NULL,
-    rejected_at     TIMESTAMPTZ  NOT NULL DEFAULT now()
+    id           UUID        PRIMARY KEY,
+    topic        TEXT        NOT NULL DEFAULT '',
+    partition_no INT         NOT NULL DEFAULT 0,
+    offset_no    BIGINT      NOT NULL DEFAULT 0,
+    key          TEXT        NOT NULL DEFAULT '',
+    payload      BYTEA       NOT NULL,
+    reason       TEXT        NOT NULL,
+    rejected_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS dead_letter_rejected_at_idx ON dead_letter (rejected_at);

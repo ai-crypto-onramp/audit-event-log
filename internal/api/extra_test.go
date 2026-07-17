@@ -235,7 +235,7 @@ func (s *listErrThenGetStore) MarkAnchored(ctx context.Context, ts time.Time, id
 
 func TestCreateExportDefaultsFormatAndRetention(t *testing.T) {
 	h, all, _ := newRouter(t)
-	// Empty format -> defaults to json; missing retention -> 2555.
+	// Empty format -> defaults to JSON; missing retention -> 2555.
 	body := []byte(`{"query":{}}`)
 	rec := do(t, h, "POST", "/v1/exports", body, auth.RoleAdmin)
 	if rec.Code != http.StatusAccepted {
@@ -245,7 +245,7 @@ func TestCreateExportDefaultsFormatAndRetention(t *testing.T) {
 	_ = json.Unmarshal(rec.Body.Bytes(), &resp)
 	id := resp["id"].(string)
 	job, _ := all.Exports.GetJob(context.Background(), id)
-	if job.Format != "json" {
+	if job.Format != "JSON" {
 		t.Errorf("format: %q", job.Format)
 	}
 	if job.RetentionDays != 2555 {
@@ -264,7 +264,7 @@ func TestCreateExportCSVExplicit(t *testing.T) {
 	_ = json.Unmarshal(rec.Body.Bytes(), &resp)
 	id := resp["id"].(string)
 	job, _ := all.Exports.GetJob(context.Background(), id)
-	if job.Format != "csv" {
+	if job.Format != "CSV" {
 		t.Errorf("format: %q", job.Format)
 	}
 	if job.RetentionDays != 30 {
@@ -298,7 +298,7 @@ func (errCreateJobStore) GetJob(ctx context.Context, id string) (*store.ExportJo
 	return nil, &store.ErrNotFound{}
 }
 
-func (errCreateJobStore) UpdateJob(ctx context.Context, id, status string, rows int64, ref string, root []byte, anchorID int64, completedAt time.Time) error {
+func (errCreateJobStore) UpdateJob(ctx context.Context, id, status string, rows int64, ref string, root []byte, anchorID string, completedAt time.Time) error {
 	return nil
 }
 
@@ -313,7 +313,7 @@ func TestGetExportWithDownloadURL(t *testing.T) {
 	var resp map[string]any
 	_ = json.Unmarshal(rec.Body.Bytes(), &resp)
 	id := resp["id"].(string)
-	_ = all.Exports.UpdateJob(context.Background(), id, "complete", 3, "exports/"+id, []byte("rootbytes1234567890123456789012"), 7, time.Now())
+	_ = all.Exports.UpdateJob(context.Background(), id, "complete", 3, "exports/"+id, []byte("rootbytes1234567890123456789012"), "anchor-7", time.Now())
 	// Rebuild router with presigner.
 	d := &Deps{
 		Events:        all.Events,
@@ -334,7 +334,7 @@ func TestGetExportWithDownloadURL(t *testing.T) {
 	if out["download_url"] != "https://presigned/exports/"+id {
 		t.Errorf("download_url: %v", out["download_url"])
 	}
-	if out["anchor_id"].(float64) != 7 {
+	if out["anchor_id"] != "anchor-7" {
 		t.Errorf("anchor_id: %v", out["anchor_id"])
 	}
 }
@@ -362,7 +362,7 @@ func (errGetJobStore) GetJob(ctx context.Context, id string) (*store.ExportJob, 
 	return nil, errors.New("get boom")
 }
 
-func (errGetJobStore) UpdateJob(ctx context.Context, id, status string, rows int64, ref string, root []byte, anchorID int64, completedAt time.Time) error {
+func (errGetJobStore) UpdateJob(ctx context.Context, id, status string, rows int64, ref string, root []byte, anchorID string, completedAt time.Time) error {
 	return nil
 }
 
@@ -574,7 +574,7 @@ func TestGetExportWithCompletedAt(t *testing.T) {
 	_ = json.Unmarshal(rec.Body.Bytes(), &resp)
 	id := resp["id"].(string)
 	completed := time.Now()
-	_ = all.Exports.UpdateJob(context.Background(), id, "complete", 3, "exports/"+id, make([]byte, 32), 0, completed)
+	_ = all.Exports.UpdateJob(context.Background(), id, "complete", 3, "exports/"+id, make([]byte, 32), "", completed)
 	rec = do(t, h, "GET", "/v1/exports/"+id, nil, auth.RoleReader)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("poll: %d", rec.Code)

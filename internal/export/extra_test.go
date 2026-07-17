@@ -34,13 +34,13 @@ func TestRunJobDefaultRetentionFallback(t *testing.T) {
 		PayloadBucket:       "bkt",
 		DefaultRetentionDays: 0,
 	})
-	job := &store.ExportJob{ID: "exp-def", Format: "json", Status: "pending"}
+	job := &store.ExportJob{ID: "exp-def", Format: "JSON", Status: "PENDING"}
 	_ = all.Exports.CreateJob(ctx, job)
 	if err := r.RunJob(ctx, job); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	got, _ := all.Exports.GetJob(ctx, "exp-def")
-	if got.Status != "complete" {
+	if got.Status != "COMPLETE" {
 		t.Errorf("status: %s", got.Status)
 	}
 }
@@ -55,14 +55,14 @@ func TestRunJobUnsupportedFormat(t *testing.T) {
 		Payloads:      &s3PutAdapter{s3.NewFake()},
 		PayloadBucket: "bkt",
 	})
-	job := &store.ExportJob{ID: "exp-xml", Format: "xml", RetentionDays: 30, Status: "pending"}
+	job := &store.ExportJob{ID: "exp-xml", Format: "xml", RetentionDays: 30, Status: "PENDING"}
 	_ = all.Exports.CreateJob(ctx, job)
 	if err := r.RunJob(ctx, job); err == nil {
 		t.Fatal("expected unsupported format error")
 	}
 	got, _ := all.Exports.GetJob(ctx, "exp-xml")
-	if got.Status != "failed" {
-		t.Errorf("expected failed, got %s", got.Status)
+	if got.Status != "FAILED" {
+		t.Errorf("expected FAILED, got %s", got.Status)
 	}
 }
 
@@ -75,14 +75,14 @@ func TestRunJobParseQueryError(t *testing.T) {
 		Payloads:      &s3PutAdapter{s3.NewFake()},
 		PayloadBucket: "bkt",
 	})
-	job := &store.ExportJob{ID: "exp-bad", Format: "json", RetentionDays: 30, Status: "pending", Query: []byte("not-json")}
+	job := &store.ExportJob{ID: "exp-bad", Format: "JSON", RetentionDays: 30, Status: "PENDING", Query: []byte("not-json")}
 	_ = all.Exports.CreateJob(ctx, job)
 	if err := r.RunJob(ctx, job); err == nil {
 		t.Fatal("expected parse error")
 	}
 	got, _ := all.Exports.GetJob(ctx, "exp-bad")
-	if got.Status != "failed" {
-		t.Errorf("expected failed, got %s", got.Status)
+	if got.Status != "FAILED" {
+		t.Errorf("expected FAILED, got %s", got.Status)
 	}
 }
 
@@ -96,14 +96,14 @@ func TestRunJobS3PutError(t *testing.T) {
 		Payloads:      errPayloadStore{},
 		PayloadBucket: "bkt",
 	})
-	job := &store.ExportJob{ID: "exp-put", Format: "json", RetentionDays: 30, Status: "pending"}
+	job := &store.ExportJob{ID: "exp-put", Format: "JSON", RetentionDays: 30, Status: "PENDING"}
 	_ = all.Exports.CreateJob(ctx, job)
 	if err := r.RunJob(ctx, job); err == nil {
 		t.Fatal("expected s3 put error")
 	}
 	got, _ := all.Exports.GetJob(ctx, "exp-put")
-	if got.Status != "failed" {
-		t.Errorf("expected failed, got %s", got.Status)
+	if got.Status != "FAILED" {
+		t.Errorf("expected FAILED, got %s", got.Status)
 	}
 }
 
@@ -124,7 +124,7 @@ func TestRunJobContextCancel(t *testing.T) {
 		PayloadBucket: "bkt",
 	})
 	cancel()
-	job := &store.ExportJob{ID: "exp-ctx", Format: "json", RetentionDays: 30, Status: "pending"}
+	job := &store.ExportJob{ID: "exp-ctx", Format: "JSON", RetentionDays: 30, Status: "PENDING"}
 	_ = all.Exports.CreateJob(ctx, job)
 	// The first List call returns events (cancellation only checked at loop
 	// top), so the job may still complete. We assert the runner doesn't panic.
@@ -143,17 +143,17 @@ func TestRunJobSignerError(t *testing.T) {
 		PayloadBucket: "bkt",
 		Signer:        errSigner{},
 	})
-	job := &store.ExportJob{ID: "exp-sig", Format: "json", RetentionDays: 30, Status: "pending"}
+	job := &store.ExportJob{ID: "exp-sig", Format: "JSON", RetentionDays: 30, Status: "PENDING"}
 	_ = all.Exports.CreateJob(ctx, job)
 	if err := r.RunJob(ctx, job); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	got, _ := all.Exports.GetJob(ctx, "exp-sig")
-	if got.Status != "complete" {
+	if got.Status != "COMPLETE" {
 		t.Errorf("signer error should not fail job: %s", got.Status)
 	}
-	if got.AnchorID != 0 {
-		t.Errorf("anchor id should be 0 when signer errors: %d", got.AnchorID)
+	if got.AnchorID != "" {
+		t.Errorf("anchor id should be empty when signer errors: %s", got.AnchorID)
 	}
 }
 
@@ -179,14 +179,14 @@ func TestRunJobAnchorInsertError(t *testing.T) {
 		PayloadBucket: "bkt",
 		Signer:        kms.NewFake("alias/x"),
 	})
-	job := &store.ExportJob{ID: "exp-anc", Format: "json", RetentionDays: 30, Status: "pending"}
+	job := &store.ExportJob{ID: "exp-anc", Format: "JSON", RetentionDays: 30, Status: "PENDING"}
 	_ = all.Exports.CreateJob(ctx, job)
 	if err := r.RunJob(ctx, job); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	got, _ := all.Exports.GetJob(ctx, "exp-anc")
-	if got.AnchorID != 0 {
-		t.Errorf("anchor id should be 0 on insert error: %d", got.AnchorID)
+	if got.AnchorID != "" {
+		t.Errorf("anchor id should be empty on insert error: %s", got.AnchorID)
 	}
 }
 
@@ -196,11 +196,11 @@ func (errAnchors) ListAnchors(ctx context.Context, from, to time.Time) ([]*store
 	return nil, nil
 }
 
-func (errAnchors) InsertAnchor(ctx context.Context, a *store.Anchor) (int64, error) {
-	return 0, errors.New("anchor boom")
+func (errAnchors) InsertAnchor(ctx context.Context, a *store.Anchor) (string, error) {
+	return "", errors.New("anchor boom")
 }
 
-func (errAnchors) GetAnchor(ctx context.Context, id int64) (*store.Anchor, error) {
+func (errAnchors) GetAnchor(ctx context.Context, id string) (*store.Anchor, error) {
 	return nil, &store.ErrNotFound{}
 }
 
@@ -316,7 +316,7 @@ func TestBoolStr(t *testing.T) {
 }
 
 func TestBuildManifestEmpty(t *testing.T) {
-	m := buildManifest(&store.ExportJob{ID: "x", Format: "json"}, nil, chain.ZeroHash, 0)
+	m := buildManifest(&store.ExportJob{ID: "x", Format: "JSON"}, nil, chain.ZeroHash, "")
 	if m.Type != "audit-export-manifest" {
 		t.Errorf("type: %q", m.Type)
 	}
@@ -338,7 +338,7 @@ func TestRunJobUpdateJobError(t *testing.T) {
 		Payloads:      &s3PutAdapter{s3.NewFake()},
 		PayloadBucket: "bkt",
 	})
-	job := &store.ExportJob{ID: "exp-upd", Format: "json", RetentionDays: 30, Status: "pending"}
+	job := &store.ExportJob{ID: "exp-upd", Format: "JSON", RetentionDays: 30, Status: "PENDING"}
 	if err := r.RunJob(ctx, job); err == nil {
 		t.Fatal("expected update error")
 	}
@@ -352,7 +352,7 @@ func (errJobStore) GetJob(ctx context.Context, id string) (*store.ExportJob, err
 	return nil, &store.ErrNotFound{}
 }
 
-func (errJobStore) UpdateJob(ctx context.Context, id, status string, rows int64, ref string, root []byte, anchorID int64, completedAt time.Time) error {
+func (errJobStore) UpdateJob(ctx context.Context, id, status string, rows int64, ref string, root []byte, anchorID string, completedAt time.Time) error {
 	return errors.New("update boom")
 }
 
