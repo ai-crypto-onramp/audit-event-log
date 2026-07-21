@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/ai-crypto-onramp/audit-event-log/internal/api"
 	"github.com/ai-crypto-onramp/audit-event-log/internal/chain"
@@ -152,9 +153,10 @@ func Build(cfg config.Config) (*Server, error) {
 	}
 	router := api.NewRouter(d)
 
+	wrapped := otelhttp.NewHandler(router, "audit-event-log")
 	srv := &Server{
 		cfg:      cfg,
-		handler:  router,
+		handler:  wrapped,
 		anchor:   anchor,
 		signer:   signer,
 		redactor: redactor,
@@ -163,7 +165,7 @@ func Build(cfg config.Config) (*Server, error) {
 		pipeline: pipeline,
 		http: &http.Server{
 			Addr:              ":" + cfg.Port,
-			Handler:           router,
+			Handler:           wrapped,
 			ReadHeaderTimeout: 5 * time.Second,
 		},
 	}

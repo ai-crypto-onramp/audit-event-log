@@ -17,6 +17,7 @@ import (
 	"github.com/ai-crypto-onramp/audit-event-log/internal/app"
 	"github.com/ai-crypto-onramp/audit-event-log/internal/cli"
 	"github.com/ai-crypto-onramp/audit-event-log/internal/config"
+	"github.com/ai-crypto-onramp/audit-event-log/internal/otel"
 	"github.com/ai-crypto-onramp/audit-event-log/internal/store/postgres"
 )
 
@@ -24,6 +25,12 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "verify-chain" {
 		os.Exit(runVerifyChain(os.Args[2:]))
 	}
+	shutdown, err := otel.Init("audit-event-log")
+	if err != nil {
+		log.Fatalf("otel init: %v", err)
+	}
+	defer func() { _ = shutdown(context.Background()) }()
+
 	cfg := config.Load()
 	srv, err := app.Build(cfg)
 	if err != nil {
